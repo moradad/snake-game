@@ -1,0 +1,813 @@
+<!--
+游戏主界面 + 各种按钮交互 + 排行榜 + 设置界面 + 死亡提交 + 消息面板
+The main interface of the game + various button interactions
++ leaderboard + settings interface + death submission + message panel
+-->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+    <title>Snake Game</title>
+    <style>
+        body {
+            min-height: 80vh; /* 确保至少覆盖视口高度 */
+            background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            text-align: center;
+            user-select: none;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 80%; /* 关键修改 */
+        }
+        #start-screen{
+            position:fixed;
+            top:0;
+            left:0;
+            width:100%;
+            height:100%;
+            background:
+                    linear-gradient(135deg, rgba(15,32,39,0.92), rgba(32,58,67,0.88), rgba(44,83,100,0.85)),
+                    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%2300ffcc' fill-opacity='0.03'%3E%3Cpath d='M0 77.18l5.66-5.66 2.83 2.83L2.83 80H0v-2.82zM80 2.82l-5.66 5.66-2.83-2.83L77.17 0H80v2.82zM0 2.82l5.66 5.66 2.83-2.83L2.83 0H0v2.82zM80 77.18l-5.66-5.66-2.83 2.83L77.17 80H80v-2.82z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            background-size: cover, 80px 80px;
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            align-items:center;
+            z-index:10;
+            animation:fadeIn 1s;
+            overflow: hidden;
+            position: relative;
+        }
+        #start-screen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent, rgba(0,255,204,0.05), transparent);
+            animation: bgShift 12s linear infinite;
+            pointer-events: none; /* 添加此行 */
+        }
+        .start-particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: radial-gradient(circle, rgba(0,255,204,0.3), transparent);
+            border-radius: 50%;
+            animation: particleFloat 10s linear infinite;
+            pointer-events: none;
+        }
+        #start-screen h1{
+            font-size:3.5rem;
+            margin-bottom:1rem;
+            color:#00ffcc;
+            text-shadow:2px 2px 4px rgba(0,255,200,0.3);
+            position: relative;
+            z-index: 2;
+        }
+        .mode-button{
+            padding:1rem 2rem;
+            margin:.5rem;
+            font-size:1.2rem;
+            background:linear-gradient(145deg,#28a745,#218838);
+            border:none;
+            border-radius:8px;
+            color:#fff;
+            cursor:pointer;
+            transition:all .25s;
+            box-shadow:0 5px 15px rgba(0,255,100,.2);
+            position: relative;
+            z-index: 2;
+        }
+        /* 星星粒子 */
+        .star-particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: radial-gradient(circle, #fff, rgba(255,255,255,0.1));
+            border-radius: 50%;
+            animation: starTwinkle 3s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        /* 流星粒子 */
+        .meteor-particle {
+            position: absolute;
+            width: 20px;
+            height: 2px;
+            background: linear-gradient(90deg, #00ffcc, transparent); /* 流星尾巴效果 */
+            border-radius: 50%;
+            animation: meteorFall 5s linear infinite;
+            pointer-events: none;
+        }
+
+        /* 星星闪烁动画 */
+        @keyframes starTwinkle {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* 流星坠落动画 */
+        @keyframes meteorFall {
+            0% {
+                transform: rotate(-30deg) translate(0, 0);
+                opacity: 0.8;
+                left: 110%; /* 初始位置在屏幕右侧外 */
+                top: -10%;
+            }
+            100% {
+                transform: rotate(-30deg) translate(-120vw, 120vh); /* 斜向下运动 */
+                opacity: 0;
+                left: -10%;
+                top: 110%;
+            }
+        }
+        @keyframes bgShift {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        @keyframes particleFloat {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 0.3;
+            }
+            50% {
+                transform: translateY(-60vh) scale(1.2);
+                opacity: 0.6;
+            }
+            100% {
+                transform: translateY(-100vh) scale(0.8);
+                opacity: 0;
+            }
+        }
+        .mode-button:hover{transform:scale(1.05);background:linear-gradient(145deg,#218838,#28a745);}
+        #skinSelector{margin:1rem;padding:.5rem;font-size:1rem;border-radius:4px;background:#222;color:#fff;}
+        #game-container{display:none;padding-top:2rem;animation:fadeIn 1s;}
+        #scoreboard{
+            margin: 1rem auto;
+            font-size: 1.2rem;
+            background: rgba(255,255,255,.05);
+            padding: .8rem 1.5rem;
+            border-radius: 8px;
+            display: inline-block;
+            box-shadow: 0 0 10px rgba(0,255,255,.1);
+            min-width: 400px;
+            white-space: nowrap;
+        }
+        canvas{border:2px solid #fff;background:#000;display:block;margin:1rem auto;border-radius:10px;box-shadow:0 0 20px rgba(0,255,255,.1);}
+        #restart-button{display:none;margin-top:1rem;padding:.75rem 1.5rem;font-size:1rem;background:#dc3545;border:none;border-radius:6px;color:#fff;cursor:pointer;transition:background .2s;}
+        #restart-button:hover{background:#c82333;}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+
+
+        /* 设置面板的样式 */
+        #settings-overlay {
+            position: fixed;
+            top:0; left:0;
+            width:100%; height:100%;
+            background: rgba(0,0,0,0.75);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        #settings-panel {
+            background: #222;
+            padding: 1.5rem;
+            border-radius: 8px;
+            color: #fff;
+            width: 300px;
+            box-shadow: 0 0 10px #000;
+        }
+        #settings-panel h2 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            text-align: center;
+        }
+        .setting-row {
+            margin: 0.75rem 0;
+        }
+        .setting-row label {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+        }
+        .setting-row input[type="range"] {
+            width: 100%;
+        }
+        .setting-row select {
+            width: 100%;
+            padding: 0.25rem;
+            border-radius: 4px;
+            border: none;
+            background: #333;
+            color: #fff;
+        }
+        #settings-close {
+            display: block;
+            margin: 1rem auto 0;
+            padding: 0.5rem 1rem;
+            background: #dc3545;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+        }
+        /* 新的标签栏样式 */
+        .tabs {
+            position: relative;
+            display: flex;
+            border-bottom: 2px solid #444;
+            margin-bottom: 1rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 4px;
+        }
+        .tab-button {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 0.5rem 0;
+            font-size: 1rem;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 6px;
+            position: relative;
+            z-index: 1;
+        }
+        .tab-button:hover {
+            color: #fff;
+            background: rgba(255,255,255,0.1);
+        }
+        .tab-button.active {
+            color: #fff;
+            background: rgba(0,255,255,0.2);
+            box-shadow: 0 2px 8px rgba(0,255,255,0.2);
+        }
+        #settings-tab-indicator {
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 33.333%;
+            height: 3px;
+            background: #00ffcc;
+            transition: transform 0.3s;
+            z-index: 2;
+            border-radius: 3px;
+            box-shadow: 0 0 8px rgba(0,255,204,0.5);
+        }
+
+        /* 排行榜的标签栏样式 */
+        .lb-tabs {
+            position: relative;
+            display: flex;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 4px;
+            margin-bottom: 1rem;
+            width: 100%;
+        }
+        .lb-tab {
+            flex: 1;
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+            position: relative;
+            z-index: 1;
+        }
+        .lb-tab.active {
+            color: #fff;
+            background: rgba(0,255,255,0.2);
+            box-shadow: 0 2px 8px rgba(0,255,255,0.2);
+        }
+        .lb-tab:hover:not(.active) {
+            background: rgba(255,255,255,0.1);
+        }
+        #leaderboard-tab-indicator {
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 50%;
+            height: 3px;
+            background: #00f2ff;
+            transition: transform 0.3s;
+            z-index: 2;
+            border-radius: 3px;
+            box-shadow: 0 0 8px rgba(0,242,255,0.5);
+        }
+
+        /*消息公告列表*/
+        /* 鼠标悬停高亮 */
+        #notification-bell .bell-icon:hover {
+            transform: scale(1.1);
+            transition: transform .2s;
+        }
+
+        /* 列表项 */
+        .notification-item {
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background .2s;
+        }
+        .notification-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .notification-item.active {
+            background: rgba(0,255,255,0.2);
+        }
+        #notification-bell:hover {
+            transform: scale(1.1);
+            background: rgba(0,0,0,0.6);
+        }
+
+        .notification-item {
+            padding: 0.75rem 1rem;
+            margin: 0.25rem 0;
+            cursor: pointer;
+            border-left: 4px solid transparent;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .notification-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .notification-item.active {
+            background: rgba(0,255,255,0.15);
+            border-color: #00f2ff;
+        }
+
+        /* 自定义滚动条 */
+        #notification-list::-webkit-scrollbar,
+        #notification-detail::-webkit-scrollbar {
+            width: 8px;
+        }
+        #notification-list::-webkit-scrollbar-track,
+        #notification-detail::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.02);
+        }
+        #notification-list::-webkit-scrollbar-thumb,
+        #notification-detail::-webkit-scrollbar-thumb {
+            background: rgba(0,255,255,0.3);
+            border-radius: 4px;
+        }
+
+        /* 摇晃动画 */
+        @keyframes shakeBell {
+            0%, 100% { transform: rotate(0deg); }
+            15% { transform: rotate(15deg); }
+            30% { transform: rotate(-10deg); }
+            45% { transform: rotate(10deg); }
+            60% { transform: rotate(-5deg); }
+            75% { transform: rotate(5deg); }
+        }
+
+        /* 给带 .shake 类的元素添加动画 */
+        .shake {
+            animation: shakeBell 1s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+
+<div id="start-screen">
+    <h1>贪吃蛇大作战</h1>
+    <!-- 皮肤选择 -->
+    <select id="skinSelector">
+        <option value="classic" data-color="#00ff00" data-food="#ff0000">🟩 经典（绿色蛇，红色食物）</option>
+        <option value="neon"    data-color="#8A2BE2" data-food="magenta">🟦 霓虹（青色蛇，洋红食物）</option>
+        <option value="dark"    data-color="#C0C0C0" data-food="yellow">⬜ 黑暗（浅灰蛇，黄色食物）</option>
+    </select>
+    <button class="mode-button" onclick="startGame('level')">开始 闯关 模式</button>
+    <button class="mode-button" onclick="startGame('free')">开始 自由 模式</button>
+    <button id="view-leaderboard" class="mode-button" style="background:#007bff;margin-top:1rem;">
+        🏆 排行榜
+    </button>
+
+    <!-- 设置按钮 -->
+    <button id="settings-button" style="
+        position:fixed;
+        top: 20px;
+        right: 20px;
+        z-index:50;
+        padding: 0.5rem 1rem;
+        font-size: 1.5rem;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+        margin-bottom: 10px;
+    ">⚙️ 设置</button>
+
+    <!-- 消息图标 -->
+    <div id="notification-bell" style="
+        position: fixed;
+        top: 150px;
+        right: 40px;
+        width: 36px;
+        height: 36px;
+        cursor: pointer;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,0.4);
+        border-radius: 50%;
+        transition: transform .2s, background .2s;
+        margin-bottom: 10px;
+        border: 1px solid rgba(255,255,255,0.2);
+    ">
+        <span class="bell-icon" style="font-size: 28px; color: #fff;">🔔</span>
+        <span id="bell-dot" style="
+            display: none;
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 12px;
+            height: 12px;
+            font-size: 2rem;
+            background: radial-gradient(circle, #ff4d4f, #c41d7f);
+            border: 2px solid #222;
+            border-radius: 50%;
+            box-shadow: 0 0 6px rgba(255,77,79,0.6);
+        "></span>
+    </div>
+
+    <!-- 提示图标 -->
+    <div id="tips-icon" style="
+        cursor: pointer;
+        position: absolute;
+        top: 70px;
+        right: 20px;
+        font-size: 2rem;
+        background: rgba(0,0,0,0.4);
+        border-radius: 50%;
+        padding: 8px;
+        border: 1px solid rgba(255,255,255,0.2);
+    ">❓</div>
+    <p>空格加速，T 暂停/继续</p>
+</div>
+
+<div id="game-container">
+    <div id="scoreboard">
+        得分: <span id="score">0</span> │ 关卡: <span id="level">1</span> │ 存活时间: <span id="survival-time">0秒</span>
+    </div>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <button id="restart-button" onclick="onRestart()">重新开始</button>
+</div>
+
+<div class="tips-icon" style="cursor: pointer; position: absolute; top: 70px; right: 20px; font-size: 2rem;">❓</div>
+<!-- 添加操作指示模态框 -->
+<div id="tips-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); justify-content:center; align-items:center; z-index:300;">
+    <div style="background:#1e1e2f; padding:2rem; border-radius:12px; color:#fff; width:400px; text-align:center; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+        <h2 style="margin-bottom: 1rem; color: #00f2ff; font-size: 1.8rem;">游戏操作说明</h2>
+        <p style="font-size: 1.1rem;">使用方向键控制蛇的移动。</p>
+        <p style="font-size: 1.1rem;">按空格加速，按 T 暂停/继续游戏。</p>
+        <p style="font-size: 1.1rem;">注意不要撞到墙壁或自己的身体！</p>
+        <button id="close-tips" style="margin-top: 1.5rem; padding: 0.5rem 1.5rem; background:#dc3545; border:none; border-radius:6px; color:#fff; cursor:pointer; transition: background 0.3s;">关闭</button>
+    </div>
+</div>
+<!-- 排行榜模态框 -->
+<div id="leaderboard-modal" style="
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background:rgba(0,0,0,0.85); display:none;
+    justify-content:center; align-items:center; z-index:200;
+    font-family: 'Segoe UI', sans-serif;
+">
+    <div style="
+        background:#1e1e2f; padding:2rem; border-radius:16px;
+        width:600px; color:#eee; box-shadow:0 0 20px rgba(0,0,0,0.5);
+        position:relative; display:flex; flex-direction:column; align-items:center;
+    ">
+        <h2 style="
+            margin:0 0 1.5rem 0;
+            color:#00f2ff;
+            font-size:1.8rem;
+            text-shadow:0 0 10px rgba(0,242,255,0.3);
+        ">🏆 排行榜</h2>
+
+        <!-- 控制切换 -->
+        <div style="
+            display:flex; gap:1rem; margin-bottom:1.2rem;
+            width:100%; justify-content:center;
+        ">
+            <select id="lb-scope" style="
+                padding:0.6rem 1rem; background:#2c2c3e;
+                border:1px solid #444; border-radius:8px; color:#fff;
+                font-size:1rem; min-width:120px;
+            ">
+                <option value="local">本地排行</option>
+                <option value="online">在线排行</option>
+            </select>
+            <select id="lb-period" style="
+                padding:0.6rem 1rem; background:#2c2c3e;
+                border:1px solid #444; border-radius:8px; color:#fff;
+                font-size:1rem; min-width:120px;
+            ">
+                <option value="daily">日榜</option>
+                <option value="weekly">周榜</option>
+                <option value="monthly">月榜</option>
+                <option value="alltime">总榜</option>
+            </select>
+        </div>
+
+        <!-- 模式切换 -->
+        <div class="lb-tabs" style="width:100%; margin-bottom:1.5rem;">
+            <button class="lb-tab active" data-mode="level">闯关模式</button>
+            <button class="lb-tab" data-mode="free">自由模式</button>
+        </div>
+
+        <!-- 排名列表 -->
+        <ol id="lb-list" style="
+            padding:0; margin:0 0 1.5rem 0;
+            width:100%; max-height:400px;
+            overflow-y:auto;
+            font-size:1rem;
+            list-style:none;
+        "></ol>
+
+        <!-- 关闭按钮 -->
+        <button id="lb-close" style="
+            padding:0.8rem 2rem; background:#e63946;
+            border:none; border-radius:8px; color:#fff;
+            cursor:pointer; transition:all 0.3s;
+            font-size:1.1rem; font-weight:500;
+        " onmouseover="this.style.background='#d62839'" onmouseout="this.style.background='#e63946'">
+            关闭
+        </button>
+    </div>
+</div>
+
+<!--死亡提交界面-->
+<div id="death-modal" class="modal" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.85);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+">
+    <div class="modal-content" style="
+        background: #1e1e2f;
+        padding: 2rem;
+        border-radius: 12px;
+        color: #fff;
+        width: 320px;
+        text-align: center;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    ">
+        <h2 style="
+            margin: 0 0 1rem 0;
+            color: #00f2ff;
+            font-size: 1.5rem;
+        ">游戏结束</h2>
+        <p id="death-message" style="
+            margin: 0 0 1.5rem 0;
+            color: #fff;
+            font-size: 1.1rem;
+        "></p>
+        <div style="margin-bottom: 1.5rem;">
+            <input id="death-name" placeholder="输入昵称" style="
+                width: 100%;
+                padding: 0.8rem;
+                margin-bottom: 1rem;
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 6px;
+                background: rgba(255,255,255,0.1);
+                color: #fff;
+                font-size: 1rem;
+            ">
+        </div>
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+            <button id="death-submit" style="
+                padding: 0.8rem 1.5rem;
+                background: #00f2ff;
+                border: none;
+                border-radius: 6px;
+                color: #000;
+                font-weight: bold;
+                cursor: pointer;
+                transition: all 0.3s;
+                flex: 1;
+            ">提交成绩</button>
+            <button id="death-skip" style="
+                padding: 0.8rem 1.5rem;
+                background: rgba(255,255,255,0.1);
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 6px;
+                color: #fff;
+                cursor: pointer;
+                transition: all 0.3s;
+                flex: 1;
+            ">跳过</button>
+        </div>
+    </div>
+</div>
+
+<!-- 设置面板覆盖层 -->
+<div id="settings-overlay">
+    <div id="settings-panel">
+        <h2>设置</h2>
+        <!-- 改进后的标签栏 -->
+        <div id="settings-tabs" class="tabs">
+            <button class="tab-button active" data-tab="sound">声音</button>
+            <button class="tab-button"        data-tab="keys">按键</button>
+            <button class="tab-button"        data-tab="storage">存储</button>
+            <div id="tab-indicator"></div>
+        </div>
+        <!-- 声音面板 -->
+        <div class="tab-content" id="tab-sound">
+            <div class="setting-row">
+                <label for="bg-volume">背景音乐音量</label>
+                <input id="bg-volume" type="range" min="0" max="1" step="0.01">
+            </div>
+            <div class="setting-row">
+                <label for="eat-volume">吃食物音效</label>
+                <input id="eat-volume" type="range" min="0" max="1" step="0.01">
+            </div>
+        </div>
+        <!-- 按键面板 -->
+        <div class="tab-content" id="tab-keys" style="display:none;">
+            <div class="setting-row">
+                <label>上 ↑ ：<span id="key-up">ArrowUp</span> <button data-action="up" class="rebind">重绑定</button></label>
+            </div>
+            <div class="setting-row">
+                <label>下 ↓ ：<span id="key-down">ArrowDown</span> <button data-action="down" class="rebind">重绑定</button></label>
+            </div>
+            <div class="setting-row">
+                <label>左 ← ：<span id="key-left">ArrowLeft</span> <button data-action="left" class="rebind">重绑定</button></label>
+            </div>
+            <div class="setting-row">
+                <label>右 → ：<span id="key-right">ArrowRight</span> <button data-action="right" class="rebind">重绑定</button></label>
+            </div>
+            <div class="setting-row">
+                <label>加速 ○：<span id="key-accelerate"> </span> <button data-action="accelerate" class="rebind">重绑定</button></label>
+            </div>
+            <div class="setting-row">
+                <label>暂停 Ⅱ：<span id="key-pause">T</span> <button data-action="pause" class="rebind">重绑定</button></label>
+            </div>
+        </div>
+        <!-- 存储面板 -->
+        <div class="tab-content" id="tab-storage" style="display:none;">
+            <div class="setting-row">
+                <button id="save-state">保存进度</button>
+            </div>
+            <div class="setting-row">
+                <button id="load-state">继续游戏</button>
+            </div>
+        </div>
+        <button id="settings-close">关闭</button>
+    </div>
+</div>
+<!--&lt;!&ndash; 🔔 图标及小红点 &ndash;&gt;
+<div id="notification-bell" style="
+    position: fixed; top: 110px; right: 20px;
+    width: 36px; height: 36px; cursor: pointer; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.4); border-radius: 50%;
+    transition: transform .2s, background .2s;
+">
+    <span class="bell-icon" style="font-size: 28px; color: #fff;">🔔</span>
+    <span id="bell-dot" style="
+      display: none;
+      position: absolute; top: 4px; right: 4px;
+      width: 12px; height: 12px;
+      background: radial-gradient(circle, #ff4d4f, #c41d7f);
+      border: 2px solid #222; border-radius: 50%;
+      box-shadow: 0 0 6px rgba(255,77,79,0.6);
+  "></span>
+</div>-->
+
+<!-- 消息面板 -->
+<div id="notification-panel" style="
+    display: none;
+    position: fixed; top: 160px; right: 50px;
+    width: 700px; height: 450px;
+    background: linear-gradient(135deg,#1b1b2f,#16213e);
+    color: #e0e0e0;
+    border-radius: 16px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.7);
+    z-index: 200;
+    overflow: hidden; display: flex;
+">
+    <div id="notification-list" style="
+      width: 220px;
+      background: rgba(255,255,255,0.05);
+      overflow-y: auto;
+      padding: 1rem 0.5rem;
+      border-right: 1px solid rgba(255,255,255,0.1);
+  "></div>
+    <div id="notification-detail" style="
+      flex: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+  ">
+        <h3 id="notif-title" style="margin-top:0;margin-bottom:1rem;color:#00f2ff;"></h3>
+        <p id="notif-content" style="line-height:1.6;"></p>
+    </div>
+    <button id="notif-close" style="
+      position: absolute; top:12px; right:12px;
+      background: transparent; border: none; color: #fff;
+      font-size: 1.4rem; cursor: pointer;
+      transition: color .2s;
+  ">✕</button>
+</div>
+
+
+
+<!-- 音频元素 -->
+<audio id="bg-music" src="assets/sounds/bg.mp3" loop preload="auto"></audio>
+<audio id="sound-eat" src="assets/sounds/eat.mp3" preload="auto"></audio>
+<audio id="sound-levelup" src="assets/sounds/levelup.mp3" preload="auto"></audio>
+<audio id="sound-die" src="assets/sounds/die.mp3" preload="auto"></audio>
+
+
+<!-- 脚本顺序必须保证 startGame 在按钮调用之前可用 -->
+<script src="maps.js"></script>
+<script src="gameEngine.js"></script>
+<script src="renderer.js"></script>
+<script src="inputHandler.js"></script>
+<script src="main.js"></script>
+<script src="snake.js"></script>
+<script src="settings.js"></script>
+<script src="Leaderboard.js"></script>
+<script src="notification.js"></script>
+
+
+<script>
+    // 显示操作指示模态框
+    document.getElementById('tips-icon').onclick = function() {
+        document.getElementById('tips-modal').style.display = 'flex';
+    };
+
+    // 关闭操作指示模态框
+    document.getElementById('close-tips').onclick = function() {
+        document.getElementById('tips-modal').style.display = 'none';
+    };
+
+    // 监听 Q 键
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'q' || event.key === 'Q') {
+            document.getElementById('tips-modal').style.display = 'flex';
+        }
+    });
+
+    // 游戏开始界面粒子生成
+    window.onload = () => {
+        const startScreen = document.getElementById('start-screen');
+
+
+        const createParticle = () => {
+            const particle = document.createElement('div');
+            particle.className = 'start-particle';
+            particle.style.left = `${Math.random() * 100}%`;
+            particle.style.top = `${Math.random() * 100}%`;
+            particle.style.animationDelay = `${Math.random() * 5}s`;
+            startScreen.appendChild(particle);
+        };
+        // 创建40个粒子覆盖整个界面
+        for(let i=0; i<40; i++) createParticle();
+        // 生成星星粒子（30个）
+        for(let i=0; i<50; i++) {
+            const star = document.createElement('div');
+            star.className = 'star-particle';
+            star.style.left = `${Math.random() * 100}%`;
+            star.style.top = `${Math.random() * 100}%`;
+            star.style.animationDelay = `${Math.random() * 3}s`; // 随机延迟
+            startScreen.appendChild(star);
+        }
+
+        // 生成流星粒子（5个，数量少更符合流星稀有感）
+        for(let i=0; i<10; i++) {
+            const meteor = document.createElement('div');
+            meteor.className = 'meteor-particle';
+            meteor.style.animationDelay = `${Math.random() * 10}s`; // 随机出现间隔
+            startScreen.appendChild(meteor);
+        }
+    };
+</script>
+
+</body>
+</html>
